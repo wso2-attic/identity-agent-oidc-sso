@@ -30,6 +30,11 @@ public class SSOAgentConstants {
     public static final String PROPERTY_FILE_PARAMETER_NAME = "property-file";
     public static final String CERTIFICATE_FILE_PARAMETER_NAME = "certificate-file";
 
+    public static final String KEY_STORE_PASSWORD = "KeyStorePassword";
+    public static final String IDP_PUBLIC_CERT_ALIAS = "IdPPublicCertAlias";
+    public static final String PRIVATE_KEY_ALIAS = "PrivateKeyAlias";
+    public static final String PRIVATE_KEY_PASSWORD = "PrivateKeyPassword";
+
     private SSOAgentConstants() {}
 
     public static class SSOAgentConfig {

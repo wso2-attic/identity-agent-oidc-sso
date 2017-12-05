@@ -106,8 +106,8 @@ public class OIDCSSOAgentFilter implements Filter {
                         // do dynamic registration
                         regAndConfBean.performDynamicAppRegistration(ssoAgentConfig.getOIDC().getSpName());
                     } else {
-                        request.setAttribute("message", "Your Application is not yet registed with IDP. "
-                                + "Either register in IDP or enable dynamic Registraion from properties file!");
+                        request.setAttribute("message", "Your Application is not yet registered with IDP. "
+                                + "Either register in IDP or enable dynamic Registration from properties file!");
                         requestDispatcher = request.getRequestDispatcher("index.jsp");
                         requestDispatcher.forward(request, response);
                     }

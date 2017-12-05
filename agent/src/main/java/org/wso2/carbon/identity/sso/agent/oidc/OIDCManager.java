@@ -171,7 +171,7 @@ public class OIDCManager {
 
                     request.getSession(false).setAttribute("claimsMap", getClaimsMap(userInfoJSONObject));
                     request.getSession(false).setAttribute("logoutUrl",
-                            "https://localhost:9443/oidc/logout?post_logout_redirect_uri="
+                            ssoAgentConfig.getOIDC().getOIDCLogoutEndpoint()+"?post_logout_redirect_uri="
                                     +loggedInSessionBean.getOIDC().getCallbackUrl()+"&id_token_hint="
                                     + loggedInSessionBean.getOIDC().getIdToken());
                 }

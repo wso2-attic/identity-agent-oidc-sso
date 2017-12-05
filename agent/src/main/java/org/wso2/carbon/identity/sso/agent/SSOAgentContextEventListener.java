@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
+ * Copyright (c) 2017, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
  *
  * WSO2 Inc. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -26,6 +26,7 @@ import org.wso2.carbon.identity.sso.agent.util.SSOAgentConstants;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Enumeration;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -34,134 +35,121 @@ import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
 
 /**
- * Context EventListner Class for SAML2 SSO and OIDC.
+ * Context Event Listener Class for OIDC SSO. This class is used to perform OIDC configurations.
+ * Initialization is performed in the following order.
+ * 1. assignment of default values
+ * 2. fetch values from context-params defined in web.xml
+ * 3. read properties from sso.properties file.
  */
 public class SSOAgentContextEventListener implements ServletContextListener {
 
+    public static final String DEFAULT_SSO_PROPERTIES_FILE_NAME = "sso.properties";
     private static Logger logger = Logger.getLogger(SSOAgentContextEventListener.class.getName());
 
     @Override
     public void contextInitialized(ServletContextEvent servletContextEvent) {
-        Properties properties = new Properties();
-        Boolean hasPropertyFile = false;
+        Properties ssoProperties = new Properties();
         try {
             ServletContext servletContext = servletContextEvent.getServletContext();
 
-            // Load the client property-file, if not specified throw SSOAgentException
-            String propertyFileName = servletContext.getInitParameter(SSOAgentConstants.PROPERTY_FILE_PARAMETER_NAME);
-            if (StringUtils.isNotBlank(propertyFileName)) {
-                hasPropertyFile = true;
-                properties.load(servletContextEvent.getServletContext().
-                        getResourceAsStream("/WEB-INF/classes/" + propertyFileName));
-            } else
-                hasPropertyFile = false;
-
-            // Load the client security certificate, if not specified throw SSOAgentException.
-            String certificateFileName = servletContext.getInitParameter(SSOAgentConstants
-                    .CERTIFICATE_FILE_PARAMETER_NAME);
-            InputStream keyStoreInputStream;
-            if (StringUtils.isNotBlank(certificateFileName)) {
-                keyStoreInputStream = servletContext.getResourceAsStream("/WEB-INF/classes/"
-                        + certificateFileName);
-            } else {
-                throw new SSOAgentException(SSOAgentConstants.CERTIFICATE_FILE_PARAMETER_NAME
-                        + " context-param is not specified in the web.xml");
-            }
-
-            SSOAgentX509Credential credential;
-            if (hasPropertyFile) {
-                credential = new SSOAgentX509KeyStoreCredential(keyStoreInputStream,
-                        properties.getProperty("KeyStorePassword").toCharArray(),
-                        properties.getProperty("IdPPublicCertAlias"),
-                        properties.getProperty("PrivateKeyAlias"),
-                        properties.getProperty("PrivateKeyPassword").toCharArray());
-            } else {
-                credential = new SSOAgentX509KeyStoreCredential(keyStoreInputStream,
-                        "wso2carbon".toCharArray(),
-                        "wso2carbon", "wso2carbon",
-                        "wso2carbon".toCharArray());
-            }
+            String propertyFileName = getPropertyFileName(servletContext);
+            loadSSOProperties(ssoProperties,servletContextEvent,propertyFileName);
 
             SSOAgentConfig config = new SSOAgentConfig();
-
-            if (!hasPropertyFile) {
-                //set default properties when the sso.properties file is not available
-                properties.setProperty("KeyStorePassword", "wso2carbon");
-                properties.setProperty("IdPPublicCertAlias", "wso2carbon");
-                properties.setProperty("PrivateKeyAlias", "wso2carbon");
-                properties.setProperty("PrivateKeyPassword", "wso2carbon");
-
-                Boolean isOIDCEnabled = false;
-                String isOIDCEnabledString = servletContext.getInitParameter(
-                        SSOAgentConstants.SSOAgentConfig.ENABLE_OIDC_SSO_LOGIN);
-                if (StringUtils.isNotBlank(isOIDCEnabledString)) {
-                    isOIDCEnabled = Boolean.parseBoolean(isOIDCEnabledString);
-                }
-
-                if (isOIDCEnabled) {
-
-                    properties.setProperty("EnableOIDCSSOLogin", "true");
-                    properties.setProperty("OIDCSSOURL", "oidcsso");
-                    String spName = servletContext.getInitParameter(SSOAgentConstants.SSOAgentConfig.OIDC.
-                            SERVICE_PROVIDER_NAME);
-                    if (StringUtils.isNotBlank(spName)) {
-                        properties.setProperty("OIDC.spName", spName);
-                    } else {
-                        throw new SSOAgentException(SSOAgentConstants.SSOAgentConfig.OIDC.SERVICE_PROVIDER_NAME
-                                + " context-param is not specified in the web.xml");
-                    }
-
-                    String clientId = servletContext.getInitParameter(SSOAgentConstants.SSOAgentConfig.OIDC.CLIENT_ID);
-                    if (StringUtils.isNotBlank(clientId)) {
-                        properties.setProperty("OIDC.ClientId", clientId);
-                    } else {
-                        throw new SSOAgentException(SSOAgentConstants.SSOAgentConfig.OIDC.CLIENT_ID
-                                + " context-param is not specified in the web.xml");
-                    }
-
-                    String clientSecret = servletContext.getInitParameter(SSOAgentConstants.SSOAgentConfig.OIDC.
-                            CLIENT_SECRET);
-                    if (StringUtils.isNotBlank(clientSecret)) {
-                        properties.setProperty("OIDC.ClientSecret", clientSecret);
-                    } else {
-                        throw new SSOAgentException(SSOAgentConstants.SSOAgentConfig.OIDC.CLIENT_SECRET
-                                + " context-param is not specified in the web.xml");
-                    }
-
-                    String callBackUrl = servletContext.getInitParameter(SSOAgentConstants.SSOAgentConfig.OIDC.
-                            CALL_BACK_URL);
-                    if (StringUtils.isNotBlank(callBackUrl)) {
-                        properties.setProperty("OIDC.CallBackUrl", callBackUrl);
-                    } else {
-                        throw new SSOAgentException(SSOAgentConstants.SSOAgentConfig.OIDC.CALL_BACK_URL
-                                + " context-param is not specified in the web.xml");
-                    }
-
-                    String enableIDTokenValidationString = servletContext.getInitParameter(
-                            SSOAgentConstants.SSOAgentConfig.OIDC.ENABLE_ID_TOKEN_VALIDATION);
-                    if (StringUtils.isNotBlank(enableIDTokenValidationString)) {
-                        properties.setProperty("OIDC.EnableIDTokenValidation", enableIDTokenValidationString);
-                    }
-
-                    properties.setProperty("OIDC.AuthorizeEndpoint", "https://localhost:9443/oauth2/authorize");
-                    properties.setProperty("OIDC.TokenEndpoint", "https://localhost:9443/oauth2/token");
-                    properties.setProperty("OIDC.UserInfoEndpoint",
-                            "https://localhost:9443/oauth2/userinfo?schema=openid");
-                    properties.setProperty("OIDC.GrantType", "code");
-                    properties.setProperty("OIDC.Scope", "openid");
-
-                }
-            }
-            config.initConfig(properties);
+            config.initConfig(ssoProperties);
             servletContext.setAttribute(SSOAgentConstants.CONFIG_BEAN_NAME, config);
 
-        } catch (IOException e) {
-            logger.log(Level.SEVERE, e.getMessage(), e);
-            System.out.println("IOEXception: " + e.getMessage());
         } catch (SSOAgentException e) {
             logger.log(Level.SEVERE, e.getMessage(), e);
             System.out.println("SSOAgentException: " + e.getMessage());
         }
+    }
+
+
+    private void loadSSOProperties(Properties ssoProperties, ServletContextEvent servletContextEvent,
+                                   String propertyFileName) {
+        loadDefaultValues(ssoProperties);
+        readPropertiesFromContextParams(ssoProperties,servletContextEvent);
+        readPropertiesFromPropertyFile(ssoProperties,servletContextEvent,propertyFileName);
+
+        Enumeration effectivePropertyNames = ssoProperties.propertyNames();
+        String effectivePropertiesString = "Final(Effective) Properties: ";
+        String propertyName;
+        while(effectivePropertyNames.hasMoreElements()){
+            propertyName = effectivePropertyNames.nextElement().toString();
+            effectivePropertiesString += propertyName + " = "+ssoProperties.getProperty(propertyName)+", ";
+        }
+        logger.log(Level.INFO,effectivePropertiesString);
+    }
+
+    private void readPropertiesFromPropertyFile(Properties ssoProperties, ServletContextEvent servletContextEvent,
+                                                String propertyFileName) {
+        Properties propertiesInPropertyFile = new Properties();
+
+        try {
+            propertiesInPropertyFile.load(servletContextEvent.getServletContext().
+                    getResourceAsStream("/WEB-INF/classes/" + propertyFileName));
+        } catch (IOException e) {
+            logger.log(Level.INFO, String.format(" Error occurred while trying to load property file: %s",
+                    propertyFileName));
+        }
+
+        Enumeration propertyFilePropertyNames = propertiesInPropertyFile.propertyNames();
+        String propertyFilePropertyName;
+        while(propertyFilePropertyNames.hasMoreElements()){
+            propertyFilePropertyName = propertyFilePropertyNames.nextElement().toString();
+            if(ssoProperties.getProperty(propertyFilePropertyName) == null){
+                ssoProperties.setProperty(propertyFilePropertyName,propertiesInPropertyFile.
+                        getProperty(propertyFilePropertyName));
+            }else if(ssoProperties.getProperty(propertyFilePropertyName) != null){
+                ssoProperties.replace(propertyFilePropertyName,propertiesInPropertyFile.
+                        getProperty(propertyFilePropertyName));
+            }
+        }
+    }
+
+
+    private void readPropertiesFromContextParams(Properties ssoProperties, ServletContextEvent servletContextEvent) {
+        ServletContext servletContext = servletContextEvent.getServletContext();
+        Enumeration parameterNames = servletContext.getInitParameterNames();
+        String contextParamName;
+
+        while(parameterNames.hasMoreElements()){
+            contextParamName = parameterNames.nextElement().toString();
+            if(ssoProperties.getProperty(contextParamName) == null){
+                ssoProperties.setProperty(contextParamName,servletContext.getInitParameter(contextParamName));
+            }else if(ssoProperties.getProperty(contextParamName) != null){
+                ssoProperties.replace(contextParamName,servletContext.getInitParameter(contextParamName));
+            }
+        }
+    }
+
+    private void loadDefaultValues(Properties ssoProperties) {
+        ssoProperties.setProperty(SSOAgentConstants.SSOAgentConfig.ENABLE_OIDC_SSO_LOGIN, "true");
+        ssoProperties.setProperty(SSOAgentConstants.SSOAgentConfig.OIDC_SSO_URL, "oidcsso");
+        ssoProperties.setProperty(SSOAgentConstants.SSOAgentConfig.OIDC.OAUTH2_AUTHZ_ENDPOINT,
+                "https://localhost:9443/oauth2/authorize");
+        ssoProperties.setProperty(SSOAgentConstants.SSOAgentConfig.OIDC.OAUTH2_TOKEN_ENDPOINT,
+                "https://localhost:9443/oauth2/token");
+        ssoProperties.setProperty(SSOAgentConstants.SSOAgentConfig.OIDC.OAUTH2_USER_INFO_ENDPOINT,
+                "https://localhost:9443/oauth2/userinfo?schema=openid");
+        ssoProperties.setProperty(SSOAgentConstants.SSOAgentConfig.OIDC.OAUTH2_GRANT_TYPE, "code");
+        ssoProperties.setProperty(SSOAgentConstants.SSOAgentConfig.OIDC.SCOPE, "openid");
+        ssoProperties.setProperty(SSOAgentConstants.SSOAgentConfig.OIDC.ENABLE_ID_TOKEN_VALIDATION,"false");
+        ssoProperties.setProperty(SSOAgentConstants.SSOAgentConfig.OIDC.OIDC_LOGOUT_ENDPOINT,
+                "https://localhost:9443/oidc/logout");
+
+        ssoProperties.setProperty(SSOAgentConstants.KEY_STORE_PASSWORD, "wso2carbon");
+        ssoProperties.setProperty(SSOAgentConstants.IDP_PUBLIC_CERT_ALIAS, "wso2carbon");
+        ssoProperties.setProperty(SSOAgentConstants.PRIVATE_KEY_ALIAS, "wso2carbon");
+        ssoProperties.setProperty(SSOAgentConstants.PRIVATE_KEY_PASSWORD, "wso2carbon");
+    }
+
+    private String getPropertyFileName(ServletContext servletContext) {
+        if(servletContext.getInitParameter(SSOAgentConstants.PROPERTY_FILE_PARAMETER_NAME) != null){
+            return servletContext.getInitParameter(SSOAgentConstants.PROPERTY_FILE_PARAMETER_NAME);
+        }
+        return DEFAULT_SSO_PROPERTIES_FILE_NAME;
     }
 
     @Override

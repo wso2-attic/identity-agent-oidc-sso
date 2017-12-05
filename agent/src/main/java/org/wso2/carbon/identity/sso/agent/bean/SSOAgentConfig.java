@@ -302,16 +302,41 @@ public class SSOAgentConfig {
         }
 
         //configurations for OIDC specific properties begins here....
-        oidc.setSpName(properties.getProperty(SSOAgentConstants.SSOAgentConfig.OIDC.SERVICE_PROVIDER_NAME));
-        oidc.setClientId(properties.getProperty(SSOAgentConstants.SSOAgentConfig.OIDC.CLIENT_ID));
-        oidc.setClientSecret(properties.getProperty(SSOAgentConstants.SSOAgentConfig.OIDC.CLIENT_SECRET));
+
+        oidc.spName = properties.getProperty(SSOAgentConstants.SSOAgentConfig.OIDC.SERVICE_PROVIDER_NAME);
+        if(StringUtils.isBlank(oidc.spName)){
+            throw new SSOAgentException(SSOAgentConstants.SSOAgentConfig.OIDC.SERVICE_PROVIDER_NAME
+                    + "is not specified. Use either .properties file or context-params in web.xml to Specify the" +
+                    " property. Cannot proceed further.");
+        }
+
+        oidc.clientId = properties.getProperty(SSOAgentConstants.SSOAgentConfig.OIDC.CLIENT_ID);
+        if(StringUtils.isBlank(oidc.clientId)){
+            throw new SSOAgentException(SSOAgentConstants.SSOAgentConfig.OIDC.CLIENT_ID
+                    + "is not specified. Use either .properties file or context-params in web.xml to Specify the" +
+                    " property. Cannot proceed further.");
+        }
+
+        oidc.clientSecret = properties.getProperty(SSOAgentConstants.SSOAgentConfig.OIDC.CLIENT_SECRET);
+        if(StringUtils.isBlank(oidc.clientSecret)){
+            throw new SSOAgentException(SSOAgentConstants.SSOAgentConfig.OIDC.CLIENT_SECRET
+                    + "is not specified. Use either .properties file or context-params in web.xml to Specify the" +
+                    " property. Cannot proceed further.");
+        }
+
+        oidc.callBackUrl = properties.getProperty(SSOAgentConstants.SSOAgentConfig.OIDC.CALL_BACK_URL);
+        if(StringUtils.isBlank(oidc.callBackUrl)){
+            throw new SSOAgentException(SSOAgentConstants.SSOAgentConfig.OIDC.CALL_BACK_URL
+                    + "is not specified. Use either .properties file or context-params in web.xml to Specify the" +
+                    " property. Cannot proceed further.");
+        }
+
         oidc.setAuthzEndpoint(properties.getProperty(SSOAgentConstants.SSOAgentConfig.OIDC.OAUTH2_AUTHZ_ENDPOINT));
         oidc.setTokenEndpoint(properties.getProperty(SSOAgentConstants.SSOAgentConfig.OIDC.OAUTH2_TOKEN_ENDPOINT));
         oidc.setUserInfoEndpoint(properties.getProperty(SSOAgentConstants.SSOAgentConfig.OIDC.OAUTH2_USER_INFO_ENDPOINT));
         oidc.setAuthzGrantType(properties.getProperty(SSOAgentConstants.SSOAgentConfig.OIDC.OAUTH2_GRANT_TYPE));
-        oidc.setCallBackUrl(properties.getProperty(SSOAgentConstants.SSOAgentConfig.OIDC.CALL_BACK_URL));
         oidc.setOIDCLogoutEndpoint(properties.getProperty(SSOAgentConstants.SSOAgentConfig.OIDC.OIDC_LOGOUT_ENDPOINT));
-        
+
         String enableIDTokenValidationString = properties.getProperty(SSOAgentConstants.SSOAgentConfig.OIDC.ENABLE_ID_TOKEN_VALIDATION);
         if(StringUtils.isNotBlank(enableIDTokenValidationString)){
             oidc.setIsIDTokenValidationEnabled(Boolean.parseBoolean(
