@@ -22,7 +22,11 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <!-- parent tag-->
+    <parent>
+        <groupId>org.wso2</groupId>
+        <artifactId>wso2</artifactId>
+        <version>1</version>
+    </parent>
 
     <groupId>org.wso2.carbon.identity.agent.sso.java</groupId>
     <artifactId>identity-agent-oidc-sso</artifactId>
@@ -72,7 +76,7 @@
         <carbon.kernel.package.import.version.range>[4.4.0, 5.0.0)</carbon.kernel.package.import.version.range>
         <carbon.user.api.imp.pkg.version.range>[1.0.1, 2.0.0)</carbon.user.api.imp.pkg.version.range>
         <commons-collections.wso2.osgi.version.range>[3.2.0,4.0.0)</commons-collections.wso2.osgi.version.range>
-        <opensaml.version>2.6.4</opensaml.version><!--opensaml solving-->
+        <opensaml.version>2.6.4</opensaml.version>
 
         <endorsed.dir>${project.build.directory}/endorsed</endorsed.dir>
     </properties>

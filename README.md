@@ -22,10 +22,17 @@ web application under the directory: src/main/resources. This properties
  
  Thus, higer priority will override the redundant occurrences.
  ``` 
- ```
  The list of properties and their default values assumed by the agent are as follows:
+ 
+ Property                 | sample value
+ ------------------------ | -------------
+ OIDCSSOURL               | oidcsso
+ OIDC.AuthorizeEndpoint   | https://localhost:9443/oauth2/authorize 
+ OIDC.TokenEndpoint       | https://localhost:9443/oauth2/token
+ OIDC.UserInfoEndpoint    | https://localhost:9443/oauth2/userinfo?schema=openid
+ OIDC.GrantType           | code
+ OIDC.Scope               | openid
 
-```
 Mandatory properties that must be defined either in .properties file or as context-params are as follows.
 
 Property                 | Description                                                          | sample value

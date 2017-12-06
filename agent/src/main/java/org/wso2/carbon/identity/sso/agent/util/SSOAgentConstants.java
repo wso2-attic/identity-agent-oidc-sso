@@ -30,6 +30,7 @@ public class SSOAgentConstants {
     public static final String PROPERTY_FILE_PARAMETER_NAME = "property-file";
     public static final String CERTIFICATE_FILE_PARAMETER_NAME = "certificate-file";
 
+    public static final String KEY_STORE = "KeyStore";
     public static final String KEY_STORE_PASSWORD = "KeyStorePassword";
     public static final String IDP_PUBLIC_CERT_ALIAS = "IdPPublicCertAlias";
     public static final String PRIVATE_KEY_ALIAS = "PrivateKeyAlias";
@@ -61,7 +62,7 @@ public class SSOAgentConstants {
             public static final String OIDC_LOGOUT_ENDPOINT = "OIDC.LogoutEndpoint";
             public static final String OIDC_SESSION_IFRAME_ENDPOINT = "OIDC.SessionIFrameEndpoint";
             public static final String SCOPE = "OIDC.Scope";
-            public static final String POST_LOGOUT_REDIRECT_RUI = "OIDC.PostLogoutRedirectUri";
+            public static final String POST_LOGOUT_REDIRECT_URI = "OIDC.PostLogoutRedirectUri";
             public static final String ENABLE_ID_TOKEN_VALIDATION = "OIDC.EnableIDTokenValidation";
 
             private OIDC() {}
@@ -69,4 +70,8 @@ public class SSOAgentConstants {
 
     }
 
+    public static class SSL {
+        public static final String ENABLE_SSL_VERIFICATION = "SSL.EnableSSLVerification";
+        public static final String ENABLE_SSL_HOST_NAME_VERIFICATION = "SSL.EnableSSLHostNameVerification";
+    }
 }

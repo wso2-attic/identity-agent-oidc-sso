@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
+ * Copyright (c) 2017, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
  *
  * WSO2 Inc. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -14,10 +14,7 @@
  * KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations
  * under the License.
- *
- *
  */
-
 package org.wso2.carbon.identity.sso.agent.session.management;
 
 import org.wso2.carbon.identity.sso.agent.util.SSOAgentConstants;
@@ -34,17 +31,12 @@ public class SSOAgentHttpSessionListener implements HttpSessionListener {
     @Override
     public void sessionCreated(HttpSessionEvent httpSessionEvent) {
         if (httpSessionEvent.getSession().getAttribute(SSOAgentConstants.SESSION_BEAN_NAME) == null) {
-            // This log is not accurate, since we depend on request.getSession() to create new session
-            // if there is no existing session. After that only we set the Session-Bean.
-            // Thus in this listener the session always does not contain a Session-Bean Attribute.
             LOGGER.log(Level.WARNING, "HTTP Session created without LoggedInSessionBean");
         }
     }
 
     @Override
     public void sessionDestroyed(HttpSessionEvent httpSessionEvent) {
-        // No need to invalidate session here, as it is going to be invalidated soon
-        SSOAgentSessionManager.invalidateSession(httpSessionEvent.getSession());
         httpSessionEvent.getSession().removeAttribute(SSOAgentConstants.SESSION_BEAN_NAME);
     }
 }

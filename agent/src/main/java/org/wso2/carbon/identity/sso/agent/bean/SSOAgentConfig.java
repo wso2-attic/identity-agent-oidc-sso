@@ -33,8 +33,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.KeyStore;
+import java.security.SecureRandom;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.HashSet;
 
 import java.util.Map;
@@ -56,23 +56,11 @@ public class SSOAgentConfig {
     private static final Logger LOGGER = Logger.getLogger(SSOAgentConstants.LOGGER_NAME);
     private static final String ARGUMENT = "sun.java.command";
 
-    private Boolean isSAML2SSOLoginEnabled = false;
     private Boolean isOIDCLoginEnabled = false;
-    private Boolean isOpenIdLoginEnabled = false;
-    private Boolean isOAuth2SAML2GrantEnabled = false;
     private Boolean isDynamicAppRegistrationEnabled = false;
-    private Boolean isDynamicSAMLConfigEnabled = false;
     private Boolean isDynamicOIDCConfigEnabled = false;
-
-    private String saml2SSOURL = null;
     private String oidcURL = null;
-    private String openIdURL = null;
-    private String oauth2SAML2GrantURL = null;
     private Set<String> skipURIs = new HashSet<String>();
-
-    private Map<String, String[]> queryParams = new HashMap<String, String[]>();
-
-
     private OIDC oidc = new OIDC();
     private Boolean enableHostNameVerification = false;
     private Boolean enableSSLVerification = false;
@@ -82,6 +70,19 @@ public class SSOAgentConfig {
     private String privateKeyPassword;
     private String privateKeyAlias;
     private String idpPublicCertAlias;
+
+    public SSOAgentConfig() {
+
+    }
+
+    public SSOAgentConfig(Properties properties) {
+        try {
+            initConfig(properties);
+        } catch (SSOAgentException e) {
+            LOGGER.log(Level.INFO, "An error occurred during SSO Agent Configuration. Cannot proceed further.");
+        }
+    }
+
 
     public Boolean getEnableHostNameVerification() {
         return enableHostNameVerification;
@@ -99,16 +100,29 @@ public class SSOAgentConfig {
         return isDynamicAppRegistrationEnabled;
     }
 
-    public void setDynamicAppRegistrationEnabled(Boolean isDynamicAppRegistrationEnabled) {
-        this.isDynamicAppRegistrationEnabled = isDynamicAppRegistrationEnabled;
+    public void setDynamicAppRegistrationEnabled(String isDynamicAppRegistrationEnabledString) {
+
+        if (isDynamicAppRegistrationEnabledString != null) {
+            isDynamicAppRegistrationEnabled = Boolean.parseBoolean(isDynamicAppRegistrationEnabledString);
+        } else {
+            LOGGER.log(Level.FINE, SSOAgentConstants.SSOAgentConfig.ENABLE_DYNAMIC_APP_REGISTRATION +
+                    " not configured. Defaulting to \'false\'");
+            isDynamicAppRegistrationEnabled = false;
+        }
     }
 
     public Boolean isDynamicOIDCConfigEnabled() {
         return isDynamicOIDCConfigEnabled;
     }
 
-    public void setIsDynamicOIDCConfigEnabled(Boolean isDynamicOIDCConfigEnabled) {
-        this.isDynamicOIDCConfigEnabled = isDynamicOIDCConfigEnabled;
+    public void setIsDynamicOIDCConfigEnabled(String isDynamicOIDCConfigEnabledString) {
+        if (isDynamicOIDCConfigEnabledString != null) {
+            isDynamicOIDCConfigEnabled = Boolean.parseBoolean(isDynamicOIDCConfigEnabledString);
+        } else {
+            LOGGER.log(Level.FINE, SSOAgentConstants.SSOAgentConfig.ENABLE_DYNAMIC_OIDC_CONFIGURATION +
+                    " not configured. Defaulting to \'false\'");
+            isDynamicOIDCConfigEnabled = false;
+        }
     }
 
     public String getOIDCSSOURL() {
@@ -123,23 +137,57 @@ public class SSOAgentConfig {
         return skipURIs;
     }
 
-    public void setSkipURIs(Set<String> skipURIs) {
-        this.skipURIs = skipURIs;
+    public void setSkipURIs(String skipURIsString) {
+        if (!StringUtils.isBlank(skipURIsString)) {
+            String[] skipURIArray = skipURIsString.split(",");
+            for (String skipURI : skipURIArray) {
+                skipURIs.add(skipURI);
+            }
+        }
+
     }
 
-    public OIDC getOIDC() { return oidc; }
+    public OIDC getOIDC() {
+        return oidc;
+    }
 
-    public void setOIDCLoginEnabled(Boolean isOIDCLoginEnabled) {
-        this.isOIDCLoginEnabled = isOIDCLoginEnabled;
+    public void setOIDCLoginEnabled(String isOIDCSSOLoginEnabledString) {
+        if (isOIDCSSOLoginEnabledString != null) {
+            isOIDCLoginEnabled = Boolean.parseBoolean(isOIDCSSOLoginEnabledString);
+        } else {
+            LOGGER.log(Level.FINE, SSOAgentConstants.SSOAgentConfig.ENABLE_OIDC_SSO_LOGIN +
+                    " not configured. Defaulting to \'false\'");
+            isOIDCLoginEnabled = false;
+        }
+    }
+
+    public void setEnableSSLVerification(String enableSSLVerificationString) {
+        if (enableSSLVerificationString != null) {
+            this.enableSSLVerification = Boolean.parseBoolean(enableSSLVerificationString);
+        } else {
+            this.enableSSLVerification = false;
+        }
+    }
+
+    public void setEnableHostNameVerification(String enableHostNameVerificationString) {
+        if (enableHostNameVerificationString != null) {
+            this.enableHostNameVerification = Boolean.parseBoolean(enableHostNameVerificationString);
+        } else {
+            this.enableHostNameVerification = false;
+        }
     }
 
     private InputStream getKeyStoreStream() {
         return keyStoreStream;
     }
 
-    public void setKeyStoreStream(InputStream keyStoreStream) {
-        if (this.keyStoreStream == null) {
-            this.keyStoreStream = keyStoreStream;
+    public void setKeyStoreStream(String keyStore) throws SSOAgentException {
+        if (keyStore != null) {
+            try {
+                keyStoreStream = new FileInputStream(keyStore);
+            } catch (FileNotFoundException e) {
+                throw new SSOAgentException("Cannot find file " + keyStore, e);
+            }
         }
     }
 
@@ -174,10 +222,55 @@ public class SSOAgentConfig {
         this.keyStore = keyStore;
     }
 
-    public void initConfig(Properties properties) throws SSOAgentException {
+    private void initConfig(Properties properties) throws SSOAgentException {
 
+        decryptEncryptedProperties(properties);
+
+        privateKeyPassword = properties.getProperty(SSOAgentConstants.PRIVATE_KEY_PASSWORD);
+        privateKeyAlias = properties.getProperty(SSOAgentConstants.PRIVATE_KEY_ALIAS);
+        idpPublicCertAlias = properties.getProperty(SSOAgentConstants.IDP_PUBLIC_CERT_ALIAS);
+
+        setEnableSSLVerification(properties.getProperty(SSOAgentConstants.SSL.ENABLE_SSL_VERIFICATION));
+        setEnableHostNameVerification(properties.getProperty(SSOAgentConstants.SSL.ENABLE_SSL_HOST_NAME_VERIFICATION));
+
+        setOIDCLoginEnabled(properties.getProperty(SSOAgentConstants.SSOAgentConfig.ENABLE_OIDC_SSO_LOGIN));
+        setDynamicAppRegistrationEnabled(properties.getProperty(
+                SSOAgentConstants.SSOAgentConfig.ENABLE_DYNAMIC_APP_REGISTRATION));
+        setIsDynamicOIDCConfigEnabled(properties.getProperty(
+                SSOAgentConstants.SSOAgentConfig.ENABLE_DYNAMIC_OIDC_CONFIGURATION));
+        setSkipURIs(properties.getProperty(SSOAgentConstants.SSOAgentConfig.SKIP_URIS));
+
+        setOIDCSSOURL(properties.getProperty(SSOAgentConstants.SSOAgentConfig.OIDC_SSO_URL));
+        performOIDCSpecificConfigurations(properties, oidc);
+
+        setKeyStoreStream(properties.getProperty(SSOAgentConstants.KEY_STORE));
+        setKeyStorePassword(properties.getProperty(SSOAgentConstants.KEY_STORE_PASSWORD));
+
+        initializeSSLContext();
+    }
+
+    private void performOIDCSpecificConfigurations(Properties properties, OIDC oidc) throws SSOAgentException {
+        oidc.setSpName(properties.getProperty(SSOAgentConstants.SSOAgentConfig.OIDC.SERVICE_PROVIDER_NAME));
+        oidc.setClientId(properties.getProperty(SSOAgentConstants.SSOAgentConfig.OIDC.CLIENT_ID));
+        oidc.setClientSecret(properties.getProperty(SSOAgentConstants.SSOAgentConfig.OIDC.CLIENT_SECRET));
+        oidc.setCallBackUrl(properties.getProperty(SSOAgentConstants.SSOAgentConfig.OIDC.CALL_BACK_URL));
+        oidc.setAuthzEndpoint(properties.getProperty(SSOAgentConstants.SSOAgentConfig.OIDC.OAUTH2_AUTHZ_ENDPOINT));
+        oidc.setTokenEndpoint(properties.getProperty(SSOAgentConstants.SSOAgentConfig.OIDC.OAUTH2_TOKEN_ENDPOINT));
+        oidc.setUserInfoEndpoint(properties.getProperty(SSOAgentConstants.SSOAgentConfig.OIDC.OAUTH2_USER_INFO_ENDPOINT));
+        oidc.setAuthzGrantType(properties.getProperty(SSOAgentConstants.SSOAgentConfig.OIDC.OAUTH2_GRANT_TYPE));
+        oidc.setOIDCLogoutEndpoint(properties.getProperty(SSOAgentConstants.SSOAgentConfig.OIDC.OIDC_LOGOUT_ENDPOINT));
+        oidc.setIsIDTokenValidationEnabled(properties.getProperty(SSOAgentConstants.SSOAgentConfig.OIDC.
+                ENABLE_ID_TOKEN_VALIDATION));
+        oidc.setScope(properties.getProperty(SSOAgentConstants.SSOAgentConfig.OIDC.SCOPE));
+        oidc.setSessionIFrameEndpoint(properties.getProperty(SSOAgentConstants.SSOAgentConfig.OIDC.
+                OIDC_SESSION_IFRAME_ENDPOINT));
+        oidc.setPostLogoutRedirectUri(properties.getProperty(SSOAgentConstants.SSOAgentConfig.OIDC
+                .POST_LOGOUT_REDIRECT_URI));
+    }
+
+    private void decryptEncryptedProperties(Properties properties) throws SSOAgentException {
         String decodedPassword;
-        boolean isReadpassword = false;
+        boolean isReadPassword = false;
         char[] password = null;
 
         // Get copy of properties for looping in order to avoid ConcurrentModificationException.
@@ -193,7 +286,7 @@ public class SSOAgentConfig {
                 if (!System.getProperty(ARGUMENT).contains("password")) {
 
                     // Check whether the password has been already read.
-                    if (!isReadpassword) {
+                    if (!isReadPassword) {
                         Path path = Paths.get(filePath);
                         try (BufferedReader reader = Files.newBufferedReader(path, Charset.forName("UTF-8"))) {
                             StringBuilder currentLine = new StringBuilder();
@@ -205,7 +298,7 @@ public class SSOAgentConfig {
                                 currentLine.getChars(0, currentLine.length(), password, 0);
                                 currentLine = null;
                             }
-                            isReadpassword = true;
+                            isReadPassword = true;
                             if (Files.deleteIfExists(path)) {
                                 LOGGER.info("Deleted the temporary password file at " + path);
                             }
@@ -213,12 +306,12 @@ public class SSOAgentConfig {
                             throw new SSOAgentException("Error while reading the file ", ex);
                         }
                     }
-                } else if (!isReadpassword) {
+                } else if (!isReadPassword) {
 
                     // Read password from the console.
                     System.out.print("Enter password for decryption:");
                     password = System.console().readPassword();
-                    isReadpassword = true;
+                    isReadPassword = true;
                 }
                 if (ArrayUtils.isEmpty(password)) {
                     LOGGER.log(Level.SEVERE, "Can't find the password to decrypt the encrypted values.");
@@ -248,138 +341,22 @@ public class SSOAgentConfig {
         if (password != null) {
             Arrays.fill(password, (char) 0);
         }
-        privateKeyPassword = properties.getProperty("PrivateKeyPassword");
-        privateKeyAlias = properties.getProperty("PrivateKeyAlias");
-        idpPublicCertAlias = properties.getProperty("IdPPublicCertAlias");
-        if (properties.getProperty("SSL.EnableSSLVerification") != null) {
-            enableSSLVerification = Boolean.parseBoolean(properties.getProperty("SSL.EnableSSLVerification"));
-        }
-        if (properties.getProperty("SSL.EnableSSLHostNameVerification") != null) {
-            enableHostNameVerification =
-                    Boolean.parseBoolean(properties.getProperty("SSL.EnableSSLHostNameVerification"));
-        }
-        
+    }
 
-        String isOIDCSSOLoginEnabledString = properties.getProperty(
-                SSOAgentConstants.SSOAgentConfig.ENABLE_OIDC_SSO_LOGIN);
-        if (isOIDCSSOLoginEnabledString != null) {
-            isOIDCLoginEnabled = Boolean.parseBoolean(isOIDCSSOLoginEnabledString);
-        } else {
-            LOGGER.log(Level.FINE, SSOAgentConstants.SSOAgentConfig.ENABLE_OIDC_SSO_LOGIN +
-                    " not configured. Defaulting to \'false\'");
-            isOIDCLoginEnabled = false;
-        }
-
-        String isDynamicAppRegistrationEnabledString = properties.getProperty(
-                SSOAgentConstants.SSOAgentConfig.ENABLE_DYNAMIC_APP_REGISTRATION);
-        
-        if(isDynamicAppRegistrationEnabledString != null){
-            isDynamicAppRegistrationEnabled = Boolean.parseBoolean(isDynamicAppRegistrationEnabledString);
-        } else {
-            LOGGER.log(Level.FINE, SSOAgentConstants.SSOAgentConfig.ENABLE_DYNAMIC_APP_REGISTRATION +
-                    " not configured. Defaulting to \'false\'");
-            isDynamicAppRegistrationEnabled  = false;
-        }
-
-        String isDynamicOIDCConfigEnabledString = properties.getProperty(
-                SSOAgentConstants.SSOAgentConfig.ENABLE_DYNAMIC_OIDC_CONFIGURATION);
-        if(isDynamicOIDCConfigEnabledString !=null){
-            isDynamicOIDCConfigEnabled = Boolean.parseBoolean(isDynamicOIDCConfigEnabledString);
-        }else {
-            LOGGER.log(Level.FINE, SSOAgentConstants.SSOAgentConfig.ENABLE_DYNAMIC_OIDC_CONFIGURATION +
-                    " not configured. Defaulting to \'false\'");
-            isDynamicOIDCConfigEnabled  = false;
-        }
-
-        oidcURL = properties.getProperty(SSOAgentConstants.SSOAgentConfig.OIDC_SSO_URL);
-
-        String skipURIsString = properties.getProperty(SSOAgentConstants.SSOAgentConfig.SKIP_URIS);
-        if (!StringUtils.isBlank(skipURIsString)) {
-            String[] skipURIArray = skipURIsString.split(",");
-            for (String skipURI : skipURIArray) {
-                skipURIs.add(skipURI);
-            }
-        }
-
-        //configurations for OIDC specific properties begins here....
-
-        oidc.spName = properties.getProperty(SSOAgentConstants.SSOAgentConfig.OIDC.SERVICE_PROVIDER_NAME);
-        if(StringUtils.isBlank(oidc.spName)){
-            throw new SSOAgentException(SSOAgentConstants.SSOAgentConfig.OIDC.SERVICE_PROVIDER_NAME
-                    + "is not specified. Use either .properties file or context-params in web.xml to Specify the" +
-                    " property. Cannot proceed further.");
-        }
-
-        oidc.clientId = properties.getProperty(SSOAgentConstants.SSOAgentConfig.OIDC.CLIENT_ID);
-        if(StringUtils.isBlank(oidc.clientId)){
-            throw new SSOAgentException(SSOAgentConstants.SSOAgentConfig.OIDC.CLIENT_ID
-                    + "is not specified. Use either .properties file or context-params in web.xml to Specify the" +
-                    " property. Cannot proceed further.");
-        }
-
-        oidc.clientSecret = properties.getProperty(SSOAgentConstants.SSOAgentConfig.OIDC.CLIENT_SECRET);
-        if(StringUtils.isBlank(oidc.clientSecret)){
-            throw new SSOAgentException(SSOAgentConstants.SSOAgentConfig.OIDC.CLIENT_SECRET
-                    + "is not specified. Use either .properties file or context-params in web.xml to Specify the" +
-                    " property. Cannot proceed further.");
-        }
-
-        oidc.callBackUrl = properties.getProperty(SSOAgentConstants.SSOAgentConfig.OIDC.CALL_BACK_URL);
-        if(StringUtils.isBlank(oidc.callBackUrl)){
-            throw new SSOAgentException(SSOAgentConstants.SSOAgentConfig.OIDC.CALL_BACK_URL
-                    + "is not specified. Use either .properties file or context-params in web.xml to Specify the" +
-                    " property. Cannot proceed further.");
-        }
-
-        oidc.setAuthzEndpoint(properties.getProperty(SSOAgentConstants.SSOAgentConfig.OIDC.OAUTH2_AUTHZ_ENDPOINT));
-        oidc.setTokenEndpoint(properties.getProperty(SSOAgentConstants.SSOAgentConfig.OIDC.OAUTH2_TOKEN_ENDPOINT));
-        oidc.setUserInfoEndpoint(properties.getProperty(SSOAgentConstants.SSOAgentConfig.OIDC.OAUTH2_USER_INFO_ENDPOINT));
-        oidc.setAuthzGrantType(properties.getProperty(SSOAgentConstants.SSOAgentConfig.OIDC.OAUTH2_GRANT_TYPE));
-        oidc.setOIDCLogoutEndpoint(properties.getProperty(SSOAgentConstants.SSOAgentConfig.OIDC.OIDC_LOGOUT_ENDPOINT));
-
-        String enableIDTokenValidationString = properties.getProperty(SSOAgentConstants.SSOAgentConfig.OIDC.ENABLE_ID_TOKEN_VALIDATION);
-        if(StringUtils.isNotBlank(enableIDTokenValidationString)){
-            oidc.setIsIDTokenValidationEnabled(Boolean.parseBoolean(
-                properties.getProperty(SSOAgentConstants.SSOAgentConfig.OIDC.ENABLE_ID_TOKEN_VALIDATION)));
-        }else{
-            LOGGER.log(Level.FINE, "\'" + SSOAgentConstants.SSOAgentConfig.OIDC.ENABLE_ID_TOKEN_VALIDATION +
-                    "\' not configured. Defaulting to \'false\'");
-            oidc.setIsIDTokenValidationEnabled(false);
-        }
-        
-        oidc.setSessionIFrameEndpoint(properties.getProperty(SSOAgentConstants.SSOAgentConfig.OIDC
-                .OIDC_SESSION_IFRAME_ENDPOINT));
-        oidc.setScope(properties.getProperty(SSOAgentConstants.SSOAgentConfig.OIDC.SCOPE));
-        oidc.setPostLogoutRedirectUri(properties.getProperty(SSOAgentConstants.SSOAgentConfig.OIDC
-                .POST_LOGOUT_REDIRECT_RUI));
-
-        if (properties.getProperty("KeyStore") != null) {
-            try {
-                keyStoreStream = new FileInputStream(properties.getProperty("KeyStore"));
-            } catch (FileNotFoundException e) {
-                throw new SSOAgentException("Cannot find file " + properties.getProperty("KeyStore"), e);
-            }
-        }
-        keyStorePassword = properties.getProperty("KeyStorePassword");
-
-        SSLContext sc;
+    private void initializeSSLContext() throws SSOAgentException {
         try {
             // Get SSL context
-            sc = SSLContext.getInstance("SSL");
+            SSLContext sslContext = SSLContext.getInstance("SSL");
             doHostNameVerification();
             TrustManager[] trustManagers = doSSLVerification();
 
-            sc.init(null, trustManagers, new java.security.SecureRandom());
-            SSLSocketFactory sslSocketFactory = sc.getSocketFactory();
+            sslContext.init(null, trustManagers, new SecureRandom());
+            SSLSocketFactory sslSocketFactory = sslContext.getSocketFactory();
             HttpsURLConnection.setDefaultSSLSocketFactory(sslSocketFactory);
 
         } catch (Exception e) {
             throw new SSOAgentException("An error in initializing SSL Context");
         }
-    }
-
-    public void verifyConfig() throws SSOAgentException {
-
     }
 
     /**
@@ -391,7 +368,7 @@ public class SSOAgentConfig {
      * @throws org.wso2.carbon.identity.sso.agent.exception.SSOAgentException if fails to load key store
      */
     private KeyStore readKeyStore(InputStream is, String storePassword) throws
-                                                                               org.wso2.carbon.identity.sso.agent.exception.SSOAgentException {
+            org.wso2.carbon.identity.sso.agent.exception.SSOAgentException {
 
         if (storePassword == null) {
             throw new org.wso2.carbon.identity.sso.agent.exception.SSOAgentException("KeyStore password can not be null");
@@ -416,7 +393,7 @@ public class SSOAgentConfig {
         }
     }
 
-    private void doHostNameVerification(){
+    private void doHostNameVerification() {
         if (!this.getEnableHostNameVerification()) {
             // Create empty HostnameVerifier
             HostnameVerifier hv = new HostnameVerifier() {
@@ -436,7 +413,7 @@ public class SSOAgentConfig {
             trustManagers = tmf.getTrustManagers();
         } else {
             // Create a trust manager that does not validate certificate chains
-            trustManagers = new TrustManager[] { new X509TrustManager() {
+            trustManagers = new TrustManager[]{new X509TrustManager() {
                 public java.security.cert.X509Certificate[] getAcceptedIssuers() {
                     return null;
                 }
@@ -448,7 +425,7 @@ public class SSOAgentConfig {
                 public void checkServerTrusted(java.security.cert.X509Certificate[] certs,
                                                String authType) {
                 }
-            } };
+            }};
         }
         return trustManagers;
     }
@@ -468,28 +445,44 @@ public class SSOAgentConfig {
         private String scope = StringUtils.EMPTY;
         private String postLogoutRedirectUri = StringUtils.EMPTY;
         private Boolean isIDTokenValidationEnabled = false;
-       
+
         public String getSpName() {
             return spName;
         }
 
-        public void setSpName(String spName) {
+        public void setSpName(String spName) throws SSOAgentException {
+            if (StringUtils.isBlank(spName)) {
+                throw new SSOAgentException(SSOAgentConstants.SSOAgentConfig.OIDC.SERVICE_PROVIDER_NAME
+                        + "is not specified. Use either .properties file or context-params in web.xml to Specify the" +
+                        " property. Cannot proceed further.");
+            }
             this.spName = spName;
         }
-        
+
         public Boolean getIsIDTokenValidationEnabled() {
             return isIDTokenValidationEnabled;
         }
 
-        public void setIsIDTokenValidationEnabled(Boolean isIDTokenValidationEnabled) {
-            this.isIDTokenValidationEnabled = isIDTokenValidationEnabled;
+        public void setIsIDTokenValidationEnabled(String enableIDTokenValidationString) {
+            if (StringUtils.isNotBlank(enableIDTokenValidationString)) {
+                this.isIDTokenValidationEnabled = Boolean.parseBoolean(enableIDTokenValidationString);
+            } else {
+                LOGGER.log(Level.FINE, "\'" + SSOAgentConstants.SSOAgentConfig.OIDC.ENABLE_ID_TOKEN_VALIDATION +
+                        "\' not configured. Defaulting to \'false\'");
+                this.isIDTokenValidationEnabled = false;
+            }
         }
 
         public String getClientId() {
             return clientId;
         }
 
-        public void setClientId(String clientId) {
+        public void setClientId(String clientId) throws SSOAgentException {
+            if (StringUtils.isBlank(clientId)) {
+                throw new SSOAgentException(SSOAgentConstants.SSOAgentConfig.OIDC.CLIENT_ID
+                        + "is not specified. Use either .properties file or context-params in web.xml to Specify the" +
+                        " property. Cannot proceed further.");
+            }
             this.clientId = clientId;
         }
 
@@ -500,7 +493,7 @@ public class SSOAgentConfig {
         public void setAuthzEndpoint(String authzEndpoint) {
             this.authzEndpoint = authzEndpoint;
         }
-            
+
         public String getUserInfoEndpoint() {
             return userInfoEndpoint;
         }
@@ -508,7 +501,7 @@ public class SSOAgentConfig {
         public void setUserInfoEndpoint(String userInfoEndpoint) {
             this.userInfoEndpoint = userInfoEndpoint;
         }
-        
+
         public String getAuthzGrantType() {
             return authzGrantType;
         }
@@ -521,10 +514,15 @@ public class SSOAgentConfig {
             return callBackUrl;
         }
 
-        public void setCallBackUrl(String callBackUrl) {
+        public void setCallBackUrl(String callBackUrl) throws SSOAgentException {
+            if (StringUtils.isBlank(callBackUrl)) {
+                throw new SSOAgentException(SSOAgentConstants.SSOAgentConfig.OIDC.CALL_BACK_URL
+                        + "is not specified. Use either .properties file or context-params in web.xml to Specify the" +
+                        " property. Cannot proceed further.");
+            }
             this.callBackUrl = callBackUrl;
         }
-             
+
         public String getScope() {
             return scope;
         }
@@ -553,10 +551,15 @@ public class SSOAgentConfig {
             return clientSecret;
         }
 
-        public void setClientSecret(String clientSecret) {
+        public void setClientSecret(String clientSecret) throws SSOAgentException {
+            if (StringUtils.isBlank(clientSecret)) {
+                throw new SSOAgentException(SSOAgentConstants.SSOAgentConfig.OIDC.CLIENT_SECRET
+                        + "is not specified. Use either .properties file or context-params in web.xml to Specify the" +
+                        " property. Cannot proceed further.");
+            }
             this.clientSecret = clientSecret;
         }
-           
+
         public String getTokenEndpoint() {
             return tokenEndpoint;
         }

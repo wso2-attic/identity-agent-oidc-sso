@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
+ * Copyright (c) 2017, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
  *
  * WSO2 Inc. licenses this file to you under the Apache License,
  * Version 2.0 (the "License"); you may not use this file except
@@ -14,10 +14,7 @@
  * KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations
  * under the License.
- *
- *
  */
-
 package org.wso2.carbon.identity.sso.agent.bean;
 
 import java.io.Serializable;
@@ -71,7 +68,7 @@ public class LoggedInSessionBean implements Serializable {
         public void setRefreshToken(String refreshToken) {
             this.refreshToken = refreshToken;
         }
-        
+
         public String getIdToken() {
             return idToken;
         }
@@ -95,7 +92,7 @@ public class LoggedInSessionBean implements Serializable {
         public void setSessionState(String sessionState) {
             this.sessionState = sessionState;
         }
-        
+
         public JSONObject getUserDetails() {
             return userDetails;
         }
@@ -103,7 +100,7 @@ public class LoggedInSessionBean implements Serializable {
         public void setUserDetails(JSONObject userDetails) {
             this.userDetails = userDetails;
         }
-            
+
     }
 
 }

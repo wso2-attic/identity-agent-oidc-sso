@@ -48,6 +48,7 @@ import static org.wso2.carbon.identity.sso.agent.util.SSOAgentFilterUtils.getSSO
 public class OIDCSSOAgentFilter implements Filter {
 
     private static final Logger LOGGER = Logger.getLogger(SSOAgentConstants.LOGGER_NAME);
+
     protected FilterConfig filterConfig = null;
 
     /**
@@ -114,7 +115,7 @@ public class OIDCSSOAgentFilter implements Filter {
                 }
 
                 //check whether the app is configured to use OIDC
-                if (!regAndConfBean.checkOIDCconfigurationStatus(ssoAgentConfig.getOIDC().getSpName())) {
+                if (!regAndConfBean.checkOIDCConfigurationStatus(ssoAgentConfig.getOIDC().getSpName())) {
                     if (ssoAgentConfig.isDynamicOIDCConfigEnabled()) {
                         // perform dynamic oidc configuration
                         String status = regAndConfBean.performDynamicOIDCConfiguration(ssoAgentConfig);
@@ -125,7 +126,7 @@ public class OIDCSSOAgentFilter implements Filter {
                             requestDispatcher.forward(request, response);
                         }
                     } else {
-                        request.setAttribute("message", "Your Application has not yet configured to use OIDC. "+
+                        request.setAttribute("message", "Your Application has not yet configured to use OIDC. " +
                                 "Either configure using management console or enable dynamic saml configuration from" +
                                 " properties file!");
                         requestDispatcher = request.getRequestDispatcher("index.jsp");
@@ -162,15 +163,6 @@ public class OIDCSSOAgentFilter implements Filter {
     @Override
     public void destroy() {
         return;
-    }
-
-    protected void handleException(HttpServletRequest request, SSOAgentException e)
-            throws SSOAgentException {
-
-        if (request.getSession(false) != null) {
-            request.getSession(false).removeAttribute(SSOAgentConstants.SESSION_BEAN_NAME);
-        }
-        throw e;
     }
 
 }

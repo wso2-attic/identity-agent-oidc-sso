@@ -18,6 +18,7 @@
 package org.wso2.carbon.identity.sso.agent.util;
 
 import javax.servlet.ServletRequest;
+
 import org.wso2.carbon.identity.sso.agent.bean.SSOAgentConfig;
 
 import javax.servlet.http.HttpServletRequest;
@@ -39,20 +40,20 @@ public class SSOAgentRequestResolver {
         return ssoAgentConfig.isOIDCLoginEnabled() &&
                 request.getRequestURI().endsWith(ssoAgentConfig.getOIDCSSOURL());
     }
-    
-    public boolean isOIDCCodeResponse(ServletRequest servletRequest){
+
+    public boolean isOIDCCodeResponse(ServletRequest servletRequest) {
         HttpServletRequest request = (HttpServletRequest) servletRequest;
-        if(request.getRequestURI().contains("callback") && request.getParameter("code")!= null)
-        return true;
-        
+        if (request.getRequestURI().contains("callback") && request.getParameter("code") != null)
+            return true;
+
         else return false;
     }
-    
-    public boolean isOidcSLOURL(ServletRequest servletRequest){
+
+    public boolean isOidcSLOURL(ServletRequest servletRequest) {
         HttpServletRequest request = (HttpServletRequest) servletRequest;
-        if(request.getRequestURI().contains("callback")  && request.getParameter("code")== null)
+        if (request.getRequestURI().contains("callback") && request.getParameter("code") == null)
             return true;
-        
+
         else return false;
     }
 

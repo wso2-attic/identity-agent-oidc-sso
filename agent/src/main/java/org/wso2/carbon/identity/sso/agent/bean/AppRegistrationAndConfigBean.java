@@ -17,11 +17,11 @@ package org.wso2.carbon.identity.sso.agent.bean;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
-import java.net.ProtocolException;
 import java.net.URL;
 import java.rmi.RemoteException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
 import org.apache.axis2.AxisFault;
 import org.apache.axis2.client.Options;
 import org.apache.axis2.client.ServiceClient;
@@ -41,7 +41,7 @@ import org.wso2.carbon.identity.sso.agent.exception.SSOAgentException;
 
 public class AppRegistrationAndConfigBean {
 
-    private static final Logger LOGGER = Logger.getLogger("looger");
+    private static final Logger LOGGER = Logger.getLogger(AppRegistrationAndConfigBean.class.getName());
 
     private String sessionCookie = "";
     private IdentityApplicationManagementServiceStub applicationMgtStub;
@@ -54,8 +54,10 @@ public class AppRegistrationAndConfigBean {
 
     private void authenticate() throws RemoteException, MalformedURLException, SSOAgentException {
         try {
-            AuthenticationAdminStub authenticationStub = new AuthenticationAdminStub("https://localhost:9443/services/AuthenticationAdmin?wsdl");
-            authenticationStub.login("admin", "admin", (new URL("https://localhost:9443/services/")).getHost());
+            AuthenticationAdminStub authenticationStub =
+                    new AuthenticationAdminStub("https://localhost:9443/services/AuthenticationAdmin?wsdl");
+            authenticationStub.login("admin", "admin",
+                    (new URL("https://localhost:9443/services/")).getHost());
 
             ServiceContext serviceContext = authenticationStub._getServiceClient()
                     .getLastOperationContext().getServiceContext();
@@ -69,12 +71,13 @@ public class AppRegistrationAndConfigBean {
             // set the session cookie of the previous call to AuthenticationAdmin service
             option2.setProperty(org.apache.axis2.transport.http.HTTPConstants.COOKIE_STRING, sessionCookie);
         } catch (LoginAuthenticationExceptionException e) {
-            throw new SSOAgentException("Error occured while trying to invoke login function with AuthenticationAdminStub!",e);
+            throw new SSOAgentException("Error occurred while trying to invoke login function with " +
+                    "AuthenticationAdminStub!", e);
         }
-
     }
 
-    public boolean checkAppRegistrationStatus(String spName) throws RemoteException, MalformedURLException, SSOAgentException {
+    public boolean checkAppRegistrationStatus(String spName) throws RemoteException, MalformedURLException,
+            SSOAgentException {
         try {
             ApplicationBasicInfo[] appInfoArray = applicationMgtStub.getAllApplicationBasicInfo();
             for (ApplicationBasicInfo abf : appInfoArray) {
@@ -89,7 +92,7 @@ public class AppRegistrationAndConfigBean {
         return false;
     }
 
-    public boolean checkOIDCconfigurationStatus(String spName) throws RemoteException, SSOAgentException {
+    public boolean checkOIDCConfigurationStatus(String spName) throws RemoteException, SSOAgentException {
         try {
             ServiceProvider sp = applicationMgtStub.getApplication(spName);
             InboundAuthenticationConfig iac = sp.getInboundAuthenticationConfig();
@@ -107,19 +110,20 @@ public class AppRegistrationAndConfigBean {
         }
     }
 
-    public void performDynamicAppRegistration(String spName) throws MalformedURLException, RemoteException, SSOAgentException {
+    public void performDynamicAppRegistration(String spName) throws MalformedURLException, RemoteException,
+            SSOAgentException {
         try {
             ServiceProvider sp = new ServiceProvider();
             sp.setApplicationName(spName);
             sp.setDescription("Application was created in IDP via SSO Agent.");
             applicationMgtStub.createApplication(sp);
         } catch (IdentityApplicationManagementServiceIdentityApplicationManagementException e) {
-            throw new SSOAgentException("Error occured while performing dynamic registration for application '"
+            throw new SSOAgentException("Error occurred while performing dynamic registration for application '"
                     + spName + "':", e);
         }
     }
 
-    public String performDynamicOIDCConfiguration(SSOAgentConfig ssoAgentConfig) throws SSOAgentException, RemoteException, MalformedURLException, ProtocolException, IOException {
+    public String performDynamicOIDCConfiguration(SSOAgentConfig ssoAgentConfig) throws SSOAgentException, IOException {
         try {
             Boolean sameConsumerKeyExists = false;
             ServiceProvider sp = applicationMgtStub.getApplication(ssoAgentConfig.getOIDC().getSpName());
@@ -146,15 +150,15 @@ public class AppRegistrationAndConfigBean {
 
             OAuthAdminServiceStub OAuthStub = new OAuthAdminServiceStub();
 
-            for(OAuthConsumerAppDTO appDTO:OAuthStub.getAllOAuthApplicationData()){
-                if(appDTO.getOauthConsumerKey().equals(ssoAgentConfig.getOIDC().getClientId())){
+            for (OAuthConsumerAppDTO appDTO : OAuthStub.getAllOAuthApplicationData()) {
+                if (appDTO.getOauthConsumerKey().equals(ssoAgentConfig.getOIDC().getClientId())) {
                     sameConsumerKeyExists = true;
                     return "Unable to perform Dynamic OIDC configuration since a Service provider" +
-                            " is already registered with the CONSUMER KEY:"+ ssoAgentConfig.getOIDC().getClientId();
+                            " is already registered with the CONSUMER KEY:" + ssoAgentConfig.getOIDC().getClientId();
                 }
             }
 
-            if(!sameConsumerKeyExists){
+            if (!sameConsumerKeyExists) {
                 oauthDTO.setOauthConsumerKey(ssoAgentConfig.getOIDC().getClientId());
                 oauthDTO.setOauthConsumerSecret(ssoAgentConfig.getOIDC().getClientSecret());
 
@@ -176,7 +180,7 @@ public class AppRegistrationAndConfigBean {
 
         } catch (IdentityApplicationManagementServiceIdentityApplicationManagementException e) {
             throw new SSOAgentException("Error in invoking IdentityApplicationManagementService"
-                    + " while performing dynamic OIDC configuration for the provider :" + 
+                    + " while performing dynamic OIDC configuration for the provider :" +
                     ssoAgentConfig.getOIDC().getSpName(), e);
         } catch (Exception e) {
             throw new SSOAgentException("An error occured while performing dynamic OIDC "

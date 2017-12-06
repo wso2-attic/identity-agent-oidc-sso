@@ -17,15 +17,10 @@
  */
 package org.wso2.carbon.identity.sso.agent;
 
-import org.apache.commons.lang.StringUtils;
 import org.wso2.carbon.identity.sso.agent.bean.SSOAgentConfig;
-import org.wso2.carbon.identity.sso.agent.exception.SSOAgentException;
-import org.wso2.carbon.identity.sso.agent.security.SSOAgentX509Credential;
-import org.wso2.carbon.identity.sso.agent.security.SSOAgentX509KeyStoreCredential;
 import org.wso2.carbon.identity.sso.agent.util.SSOAgentConstants;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.Enumeration;
 import java.util.Properties;
 import java.util.logging.Level;
@@ -43,43 +38,36 @@ import javax.servlet.ServletContextListener;
  */
 public class SSOAgentContextEventListener implements ServletContextListener {
 
-    public static final String DEFAULT_SSO_PROPERTIES_FILE_NAME = "sso.properties";
     private static Logger logger = Logger.getLogger(SSOAgentContextEventListener.class.getName());
+
+    public static final String DEFAULT_SSO_PROPERTIES_FILE_NAME = "sso.properties";
 
     @Override
     public void contextInitialized(ServletContextEvent servletContextEvent) {
         Properties ssoProperties = new Properties();
-        try {
-            ServletContext servletContext = servletContextEvent.getServletContext();
+        ServletContext servletContext = servletContextEvent.getServletContext();
+        loadSSOProperties(ssoProperties, servletContextEvent, getPropertyFileName(servletContext));
 
-            String propertyFileName = getPropertyFileName(servletContext);
-            loadSSOProperties(ssoProperties,servletContextEvent,propertyFileName);
+        SSOAgentConfig config = new SSOAgentConfig(ssoProperties);
+        servletContext.setAttribute(SSOAgentConstants.CONFIG_BEAN_NAME, config);
 
-            SSOAgentConfig config = new SSOAgentConfig();
-            config.initConfig(ssoProperties);
-            servletContext.setAttribute(SSOAgentConstants.CONFIG_BEAN_NAME, config);
-
-        } catch (SSOAgentException e) {
-            logger.log(Level.SEVERE, e.getMessage(), e);
-            System.out.println("SSOAgentException: " + e.getMessage());
-        }
     }
 
 
     private void loadSSOProperties(Properties ssoProperties, ServletContextEvent servletContextEvent,
                                    String propertyFileName) {
         loadDefaultValues(ssoProperties);
-        readPropertiesFromContextParams(ssoProperties,servletContextEvent);
-        readPropertiesFromPropertyFile(ssoProperties,servletContextEvent,propertyFileName);
+        readPropertiesFromContextParams(ssoProperties, servletContextEvent);
+        readPropertiesFromPropertyFile(ssoProperties, servletContextEvent, propertyFileName);
 
         Enumeration effectivePropertyNames = ssoProperties.propertyNames();
         String effectivePropertiesString = "Final(Effective) Properties: ";
         String propertyName;
-        while(effectivePropertyNames.hasMoreElements()){
+        while (effectivePropertyNames.hasMoreElements()) {
             propertyName = effectivePropertyNames.nextElement().toString();
-            effectivePropertiesString += propertyName + " = "+ssoProperties.getProperty(propertyName)+", ";
+            effectivePropertiesString += propertyName + " = " + ssoProperties.getProperty(propertyName) + ", ";
         }
-        logger.log(Level.INFO,effectivePropertiesString);
+        logger.log(Level.INFO, effectivePropertiesString);
     }
 
     private void readPropertiesFromPropertyFile(Properties ssoProperties, ServletContextEvent servletContextEvent,
@@ -96,13 +84,13 @@ public class SSOAgentContextEventListener implements ServletContextListener {
 
         Enumeration propertyFilePropertyNames = propertiesInPropertyFile.propertyNames();
         String propertyFilePropertyName;
-        while(propertyFilePropertyNames.hasMoreElements()){
+        while (propertyFilePropertyNames.hasMoreElements()) {
             propertyFilePropertyName = propertyFilePropertyNames.nextElement().toString();
-            if(ssoProperties.getProperty(propertyFilePropertyName) == null){
-                ssoProperties.setProperty(propertyFilePropertyName,propertiesInPropertyFile.
+            if (ssoProperties.getProperty(propertyFilePropertyName) == null) {
+                ssoProperties.setProperty(propertyFilePropertyName, propertiesInPropertyFile.
                         getProperty(propertyFilePropertyName));
-            }else if(ssoProperties.getProperty(propertyFilePropertyName) != null){
-                ssoProperties.replace(propertyFilePropertyName,propertiesInPropertyFile.
+            } else if (ssoProperties.getProperty(propertyFilePropertyName) != null) {
+                ssoProperties.replace(propertyFilePropertyName, propertiesInPropertyFile.
                         getProperty(propertyFilePropertyName));
             }
         }
@@ -114,12 +102,12 @@ public class SSOAgentContextEventListener implements ServletContextListener {
         Enumeration parameterNames = servletContext.getInitParameterNames();
         String contextParamName;
 
-        while(parameterNames.hasMoreElements()){
+        while (parameterNames.hasMoreElements()) {
             contextParamName = parameterNames.nextElement().toString();
-            if(ssoProperties.getProperty(contextParamName) == null){
-                ssoProperties.setProperty(contextParamName,servletContext.getInitParameter(contextParamName));
-            }else if(ssoProperties.getProperty(contextParamName) != null){
-                ssoProperties.replace(contextParamName,servletContext.getInitParameter(contextParamName));
+            if (ssoProperties.getProperty(contextParamName) == null) {
+                ssoProperties.setProperty(contextParamName, servletContext.getInitParameter(contextParamName));
+            } else if (ssoProperties.getProperty(contextParamName) != null) {
+                ssoProperties.replace(contextParamName, servletContext.getInitParameter(contextParamName));
             }
         }
     }
@@ -135,7 +123,7 @@ public class SSOAgentContextEventListener implements ServletContextListener {
                 "https://localhost:9443/oauth2/userinfo?schema=openid");
         ssoProperties.setProperty(SSOAgentConstants.SSOAgentConfig.OIDC.OAUTH2_GRANT_TYPE, "code");
         ssoProperties.setProperty(SSOAgentConstants.SSOAgentConfig.OIDC.SCOPE, "openid");
-        ssoProperties.setProperty(SSOAgentConstants.SSOAgentConfig.OIDC.ENABLE_ID_TOKEN_VALIDATION,"false");
+        ssoProperties.setProperty(SSOAgentConstants.SSOAgentConfig.OIDC.ENABLE_ID_TOKEN_VALIDATION, "false");
         ssoProperties.setProperty(SSOAgentConstants.SSOAgentConfig.OIDC.OIDC_LOGOUT_ENDPOINT,
                 "https://localhost:9443/oidc/logout");
 
@@ -146,7 +134,7 @@ public class SSOAgentContextEventListener implements ServletContextListener {
     }
 
     private String getPropertyFileName(ServletContext servletContext) {
-        if(servletContext.getInitParameter(SSOAgentConstants.PROPERTY_FILE_PARAMETER_NAME) != null){
+        if (servletContext.getInitParameter(SSOAgentConstants.PROPERTY_FILE_PARAMETER_NAME) != null) {
             return servletContext.getInitParameter(SSOAgentConstants.PROPERTY_FILE_PARAMETER_NAME);
         }
         return DEFAULT_SSO_PROPERTIES_FILE_NAME;

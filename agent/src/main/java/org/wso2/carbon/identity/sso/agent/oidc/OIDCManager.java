@@ -21,6 +21,7 @@ import com.nimbusds.jose.crypto.RSASSAVerifier;
 import com.nimbusds.jwt.JWTClaimsSet;
 
 import com.nimbusds.jwt.SignedJWT;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -47,8 +48,10 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+
 import org.apache.catalina.authenticator.BasicAuthenticator;
 import org.apache.catalina.connector.Request;
+import org.apache.commons.lang.StringUtils;
 import org.apache.oltu.oauth2.client.OAuthClient;
 import org.apache.oltu.oauth2.client.URLConnectionClient;
 import org.apache.oltu.oauth2.client.request.OAuthClientRequest;
@@ -63,7 +66,6 @@ import org.wso2.carbon.identity.sso.agent.exception.SSOAgentException;
 import org.wso2.carbon.identity.sso.agent.util.SSOAgentConstants;
 
 /**
- *
  * @author chiran
  */
 public class OIDCManager {
@@ -166,21 +168,28 @@ public class OIDCManager {
                     field.setAccessible(true); // getting access to (protected) field
                     Request realRequest = (Request) field.get(request);
                     basicAuthenticator.register(realRequest, response, principal, "BASIC",
-                            "USER_NAME","PASSWORD");
+                            "USER_NAME", "PASSWORD");
                     //end of setting user principal
+
+                    String postLogoutRedirectURL;
+                    if (StringUtils.isNotBlank(ssoAgentConfig.getOIDC().getPostLogoutRedirectUri())) {
+                        postLogoutRedirectURL = ssoAgentConfig.getOIDC().getPostLogoutRedirectUri();
+                    } else {
+                        postLogoutRedirectURL = loggedInSessionBean.getOIDC().getCallbackUrl();
+                    }
 
                     request.getSession(false).setAttribute("claimsMap", getClaimsMap(userInfoJSONObject));
                     request.getSession(false).setAttribute("logoutUrl",
-                            ssoAgentConfig.getOIDC().getOIDCLogoutEndpoint()+"?post_logout_redirect_uri="
-                                    +loggedInSessionBean.getOIDC().getCallbackUrl()+"&id_token_hint="
+                            ssoAgentConfig.getOIDC().getOIDCLogoutEndpoint() + "?post_logout_redirect_uri="
+                                    + postLogoutRedirectURL + "&id_token_hint="
                                     + loggedInSessionBean.getOIDC().getIdToken());
                 }
             }
         } catch (OAuthProblemException e) {
-            throw new SSOAgentException("Error occured while requesting an access token with client :"
+            throw new SSOAgentException("Error occurred while requesting an access token with client :"
                     + ssoAgentConfig.getOIDC().getClientId(), e);
         } catch (OAuthSystemException e) {
-            throw new SSOAgentException("Error occured while building token request with client:"
+            throw new SSOAgentException("Error occurred while building token request with client:"
                     + ssoAgentConfig.getOIDC().getClientId(), e);
         } catch (Exception e) {
             throw new SSOAgentException("Error occured while validating the ID token.", e);

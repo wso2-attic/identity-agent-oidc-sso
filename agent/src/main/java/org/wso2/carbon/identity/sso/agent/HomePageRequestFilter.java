@@ -14,22 +14,14 @@
  * KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations
  * under the License.
- *
- *
  */
 package org.wso2.carbon.identity.sso.agent;
 
-import org.wso2.carbon.identity.sso.agent.bean.SSOAgentConfig;
 import org.wso2.carbon.identity.sso.agent.exception.InvalidSessionException;
 import org.wso2.carbon.identity.sso.agent.exception.SSOAgentException;
-import org.wso2.carbon.identity.sso.agent.oidc.OIDCManager;
 import org.wso2.carbon.identity.sso.agent.util.SSOAgentConstants;
-import org.wso2.carbon.identity.sso.agent.util.SSOAgentFilterUtils;
-import org.wso2.carbon.identity.sso.agent.util.SSOAgentRequestResolver;
 
 import java.io.IOException;
-import java.lang.reflect.Field;
-import java.security.Principal;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.servlet.Filter;
@@ -41,14 +33,10 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import org.apache.catalina.authenticator.BasicAuthenticator;
-import org.apache.catalina.connector.Request;
-import org.apache.commons.lang3.StringUtils;
-import org.wso2.carbon.identity.sso.agent.bean.LoggedInSessionBean;
 
 public class HomePageRequestFilter implements Filter {
 
-    private static final Logger LOGGER = Logger.getLogger(SSOAgentConstants.LOGGER_NAME);
+    private static final Logger LOGGER = Logger.getLogger(HomePageRequestFilter.class.getName());
     protected FilterConfig filterConfig = null;
 
     /**
@@ -64,17 +52,12 @@ public class HomePageRequestFilter implements Filter {
      */
     @Override
     public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse,
-            FilterChain chain) throws IOException, ServletException {
+                         FilterChain chain) throws IOException, ServletException {
 
         HttpServletRequest request = (HttpServletRequest) servletRequest;
         HttpServletResponse response = (HttpServletResponse) servletResponse;
 
         try {
-            SSOAgentConfig ssoAgentConfig = SSOAgentFilterUtils.getSSOAgentConfig(filterConfig);
-
-            SSOAgentRequestResolver resolver
-                    = new SSOAgentRequestResolver(request, response, ssoAgentConfig);
-
             if (request.getSession().getAttribute(SSOAgentConstants.SESSION_BEAN_NAME) == null) {
                 response.sendRedirect(filterConfig.getServletContext().getContextPath());
                 return;
@@ -83,17 +66,11 @@ public class HomePageRequestFilter implements Filter {
                         getRequestDispatcher("/WEB-INF/home.jsp");
                 dispatcher.forward(request, response);
             }
-
         } catch (InvalidSessionException e) {
             request.setAttribute(SSOAgentConstants.SHOULD_GO_TO_WELCOME_PAGE, "true");
-
         } catch (SSOAgentException e) {
             LOGGER.log(Level.SEVERE, "An error has occurred", e);
             throw e;
-        }  catch (SecurityException ex) {
-            Logger.getLogger(HomePageRequestFilter.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (IllegalArgumentException ex) {
-            Logger.getLogger(HomePageRequestFilter.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
 
